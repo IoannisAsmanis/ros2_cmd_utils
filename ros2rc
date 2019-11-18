@@ -1,0 +1,172 @@
+### UTILS ###
+export ROS_DISTRO="eloquent"
+export ROS_SHELL_TYPE="$0"
+export ROS_WS_CONTAINER="$HOME"
+
+alias rr="ros2 run "
+alias ros_undo_build="rm -r build install log"
+
+alias rtl="ros2 topic list"
+rte ()
+{
+	ros2 topic echo "$1"
+}
+
+alias rpc="ros2 pkg create "
+rpc_cpp ()
+{
+	dep_string=""
+	first_arg=true
+	for arg in "$@"
+	do
+		if [ $first_arg ]; then
+			dep_string=$arg
+			first_arg=false
+		else
+			dep_string="$dep_string $arg"
+		fi
+	done
+	rpc --build-type ament_cmake $1 --dependencies $dep_string
+}
+
+rpc_py ()
+{
+	dep_string=""
+	first_arg=true
+	for arg in "$@"
+	do
+		if [ $first_arg ]; then
+			dep_string=$arg
+			first_arg=false
+		else
+			dep_string="$dep_string $arg"
+		fi
+	done
+	rpc --build-type ament_python $1 --dependencies $dep_string
+}
+
+colb ()
+{
+	if (( $# > 0 )); then
+		echo "Building packages: $@"
+		colcon build --packages-select "$@"
+	else
+		echo "Building everything..."
+		colcon build
+	fi
+}
+
+abuild ()
+{
+	base_dir="$(realpath ".")"
+	exec_dir="$base_dir"	# eventually should be: $ROS_WS_CONTAINER/<ws_id>/src/<pkg_id>
+	guard_dir="$(realpath "$base_dir/..")"		# in-between directory
+	parent_dir="$(realpath "$base_dir/../..")"	# $ROS_WS_CONTAINER/<ws_id>
+	grand_parent_dir="$(realpath "$parent_dir/..")"	# $ROS_WS_CONTAINER
+	
+	check_dir="$(realpath "$base_dir/..")"	# to check the case we start in <ws_id>
+
+	#echo "$exec_dir"
+	#echo "$parent_dir"
+	#echo "$grand_parent_dir"
+	#echo "=========="
+
+	while [ "$grand_parent_dir" != "$ROS_WS_CONTAINER" -a \
+		"$parent_dir" != "$ROS_WS_CONTAINER" -a \
+		"$exec_dir" != "$ROS_WS_CONTAINER" -a \
+		"$grand_parent_dir" != "/" ];
+	do
+		exec_dir="$guard_dir"
+		guard_dir="$(realpath "$guard_dir/..")"
+		parent_dir="$grand_parent_dir"
+		grand_parent_dir="$(realpath "$grand_parent_dir/..")"
+
+		#echo "$exec_dir"
+		#echo "$parent_dir"
+		#echo "$grand_parent_dir"
+		#echo "=========="
+	done
+	
+	#echo "$exec_dir"
+	#echo "$parent_dir"
+	#echo "$grand_parent_dir"
+	#echo "^^^^^^^^^^^^^"
+
+	if [ "$check_dir" == "$ROS_WS_CONTAINER" ]; then
+		echo "Building all in workspace: $base_dir"
+		cd $base_dir
+		colb
+	elif [ "$grand_parent_dir" == "/" -a \
+		"$parent_dir" != "$ROS_WS_CONTAINER" ]; then
+		echo "You don't seem to currently be in a ROS 2 WS subdirectory, aborting!"
+	elif [ "$parent_dir" == "$ROS_WS_CONTAINER" ]; then
+		echo "Building all in workspace: $guard_dir"
+		cd $guard_dir
+		colb
+	elif [ "$grand_parent_dir" == "$ROS_WS_CONTAINER" ]; then
+		num_slashes=$(awk -F '/' '{print NF-1}' <<< "$exec_dir")	# find number of '/' characters in the path, to split the string and get the package name
+		#echo "NUM_SLASHES: $num_slashes"
+		target_pkg=$(echo "$exec_dir" | cut -d '/' -f $((num_slashes+1)))	# split the path and keep the part after the last '/', which is assumed to be the target package
+		echo "Building package: $target_pkg in workspace: $parent_dir"
+		cd "$parent_dir"
+		colb "$target_pkg"
+	fi
+	cd "$base_dir"
+}
+
+# Source setup.bash
+rosup ()
+{
+	
+	if [ "$#" -eq 0 ]; then
+	# If no args provided, then go up the directory tree until
+	# either:
+	# 1) $ROS_WS_CONTAINER is reached, in which case exec_dir points to the ws
+	# 	directory, so source a local ws setup file
+	# 2) "/" is reached, in which case source the ROS_DISTRO setup.bash file
+		
+		base_dir="$(realpath ".")"
+		exec_dir="$base_dir"
+		parent_dir="$(realpath "$base_dir/..")"
+		
+		#echo "$exec_dir"
+		#echo "$parent_dir"
+		#echo "=========="
+
+		while [ "$parent_dir" != "$ROS_WS_CONTAINER" -a "$parent_dir" != "/" ];
+		do
+			exec_dir=$parent_dir
+			parent_dir="$(realpath "$exec_dir/..")"
+
+			#echo "$exec_dir"
+			#echo "$parent_dir"
+			#echo "=========="
+		done
+		
+		#echo "$exec_dir"
+		#echo "$parent_dir"
+		#echo "$ROS_WS_CONTAINER"
+		#echo "^^^^^^^^^^^^^"
+
+		if [ "$parent_dir" == "$ROS_WS_CONTAINER" ]; then
+			echo "Sourcing from: $exec_dir/install/setup.$ROS_SHELL_TYPE"
+			source "$exec_dir/install/setup.$ROS_SHELL_TYPE"
+		else
+			echo "Sourcing from: /opt/ros/$ROS_DISTRO/setup.$ROS_SHELL_TYPE"
+			source "/opt/ros/$ROS_DISTRO/setup.$ROS_SHELL_TYPE"
+		fi
+
+	elif [ "$#" -eq 1 ]; then
+	# If 1 arg is offered, assume it is a workspace
+	# name and try sourcing from there
+		echo "Sourcing from: $ROS_WS_CONTAINER/$1/install/setup.$ROS_SHELL_TYPE"
+		source "$ROS_WS_CONTAINER/$1/install/setup.$ROS_SHELL_TYPE"
+	else
+	# For more args, take the first two to be a directory path that
+	# contains workspaces and a workspace name (in that order) and
+	# try sourcing again
+		echo "Sourcing from: $1/$2/install/setup.$ROS_SHELL_TYPE"
+		source "$1/$2/install/setup.$ROS_SHELL_TYPE"
+	fi
+}
+

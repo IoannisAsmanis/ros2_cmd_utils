@@ -9,7 +9,7 @@
 export ROS_WS_CONTAINER="$HOME"
 
 # Change this according to your ROS2 version
-export ROS_DISTRO="eloquent"
+export ROS2_DISTRO="eloquent"
 
 # Gets shell type (bash, zsh etc.)
 export ROS_SHELL_TYPE="$0"
@@ -143,7 +143,7 @@ rosup ()
 	# either:
 	# 1) $ROS_WS_CONTAINER is reached, in which case exec_dir points to the ws
 	# 	directory, so source a local ws setup file
-	# 2) "/" is reached, in which case source the ROS_DISTRO setup.bash file
+	# 2) "/" is reached, in which case source the ROS2_DISTRO setup.bash file
 		
 		base_dir="$(realpath ".")"
 		exec_dir="$base_dir"
@@ -172,8 +172,8 @@ rosup ()
 			echo "Sourcing from: $exec_dir/install/setup.$ROS_SHELL_TYPE"
 			source "$exec_dir/install/setup.$ROS_SHELL_TYPE"
 		else
-			echo "Sourcing from: /opt/ros/$ROS_DISTRO/setup.$ROS_SHELL_TYPE"
-			source "/opt/ros/$ROS_DISTRO/setup.$ROS_SHELL_TYPE"
+			echo "Sourcing from: /opt/ros/$ROS2_DISTRO/setup.$ROS_SHELL_TYPE"
+			source "/opt/ros/$ROS2_DISTRO/setup.$ROS_SHELL_TYPE"
 		fi
 
 	elif [ "$#" -eq 1 ]; then

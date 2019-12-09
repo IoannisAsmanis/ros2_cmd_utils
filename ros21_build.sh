@@ -50,6 +50,7 @@ ros-eloquent-launch* && \
 sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
 apt update && \
 apt install -y ros-melodic-desktop && \
-mkdir -p /home/galar/bridge_ws/src && \
-cd /home/galar/bridge_ws/src && \
+cd ~ && \
+mkdir -p bridge_ws/src && \
+cd bridge_ws/src && \
 git clone https://github.com/ros2/ros1_bridge.git
